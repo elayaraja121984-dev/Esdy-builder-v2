@@ -1,0 +1,50 @@
+name: Build test APK
+on:
+  push:
+  workflow_dispatch:
+
+# needed so the APK can be attached to a GitHub Release (direct .apk download, no zip)
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: 17 }
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager --install "platforms;android-35" "build-tools;34.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.9" }
+
+      - name: Verify bundled offline ZIP reader
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s app/src/main/assets/vendor/jszip.min.js
+          grep -q 'JSZip' app/src/main/assets/vendor/jszip.min.js
+
+      # The template app (:shell) is now built and embedded AUTOMATICALLY by :app
+      # (see app/build.gradle -> copyShellApk). No manual copy step needed.
+      - name: Build ESDY Builder APK (debug-signed test build)
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Name the APK
+        run: |
+          test -s app/build/outputs/apk/debug/app-debug.apk
+          cp app/build/outputs/apk/debug/app-debug.apk ESDY-Builder.apk
+          # the template must really be inside the builder
+          unzip -l ESDY-Builder.apk | grep -q 'assets/shell.apk'
+
+      # Direct APK download (GitHub "artifacts" are always zipped, releases are not):
+      #   Repo > Releases > latest > ESDY-Builder.apk
+      - name: Publish APK as a GitHub Release (direct download)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-build-${{ github.run_number }}
+          name: ESDY Builder test APK #${{ github.run_number }}
+          prerelease: false
+          make_latest: true
+          files: ESDY-Builder.apk
