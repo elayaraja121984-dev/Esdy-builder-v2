@@ -10,9 +10,8 @@ contents: write
 jobs:
 apk:
 runs-on: ubuntu-latest
-
 steps:
-  - uses: actions/checkout@v4
+- uses: actions/checkout@v4
 
   - uses: actions/setup-java@v4
     with:
@@ -54,7 +53,7 @@ steps:
     uses: softprops/action-gh-release@v2
     with:
       tag_name: apk-build-${{ github.run_number }}
-      name: ESDY Builder test APK #${{ github.run_number }}
+      name: "ESDY Builder test APK #${{ github.run_number }}"
       prerelease: false
       make_latest: true
       files: ESDY-Builder.apk
